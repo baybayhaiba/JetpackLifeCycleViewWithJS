@@ -6,6 +6,12 @@ public class User {
     private String username;
     private String email;
 
+    static User none() {
+        User user = new User();
+        user.setId(-1);
+        return user;
+    }
+
     public int getId() {
         return id;
     }

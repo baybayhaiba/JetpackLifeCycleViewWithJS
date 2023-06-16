@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -17,9 +18,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -31,22 +32,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.MutableLiveData
 import com.example.jetpacklifecycleviewwithjs.ui.theme.JetpackLifeCycleViewWithJSTheme
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
-import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.time.Duration
 
 
 class MainActivity : ComponentActivity() {
 
     private val BASE_URL = "https://jsonplaceholder.typicode.com/"
-    private val TAG = MainActivity::class.java.simpleName
-    private val userIdState = MutableLiveData<Int>()
+    private val TAG = "Jetpack Compose Hasent"
     private lateinit var jsonPlaceholderApi: JsonPlaceholderApi
 
     suspend fun getUser(userId: Int) = jsonPlaceholderApi.getUser(userId)
@@ -85,6 +80,7 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun Screen(modifier: Modifier = Modifier) {
+
         val scope = rememberCoroutineScope()
         var searchText by remember {
             mutableStateOf("")
@@ -93,27 +89,27 @@ class MainActivity : ComponentActivity() {
             mutableStateOf<Job?>(null)
         }
         Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-            TextField(value = searchText, onValueChange = {
-                searchText = it
-                Log.d(TAG, "Screen: ==> $it")
-                currentJob?.cancel()
-                currentJob = scope.async {
-                    delay(300)
-                    userIdState.value = it.toIntOrNull() ?: 1
-                }
-            })
+            Spacer(modifier = Modifier.padding(16.dp))
+            TextField(
+                value = searchText, onValueChange = {
+                    searchText = it
+                }, modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            )
 
             Spacer(modifier = Modifier.padding(16.dp))
 
-            User()
+            User(text = searchText)
         }
     }
 
     @Composable
-    fun User(modifier: Modifier = Modifier) {
-//        val scope = rememberCoroutineScope()
-        val state by this.userIdState.observeAsState()
-        val stateUI by loadUserState(userId = state ?: 1, jsonPlaceholderApi = jsonPlaceholderApi)
+    fun User(modifier: Modifier = Modifier, text: String) {
+
+        val userId = text.toIntOrNull() ?: 1
+
+        val stateUI by loadUserState(userId = userId)
 
 //        LaunchedEffect(Unit) {
 //            val user = getUser(userId)
@@ -121,13 +117,7 @@ class MainActivity : ComponentActivity() {
 //                this@MainActivity.state.postValue(user)
 //        }
 
-
-//        Text(
-//            text = "Hello ${state.value?.name}!",
-//            modifier = modifier
-//        )
-
-        stateUI.HandleResult(loadingContent = { LoadingView() }, successContent = { data: User? ->
+        stateUI.toUi(loadingContent = { LoadingView() }, successContent = { data: User? ->
             SuccessView(data = data) {
                 Text(text = "Welcome to my channel : ${data?.name}")
             }
@@ -178,13 +168,22 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun loadUserState(userId: Int, jsonPlaceholderApi: JsonPlaceholderApi): State<Result<User>> {
+    fun loadUserState(userId: Int): State<Result<User>> {
+
+        DisposableEffect(key1 = userId, key2 = Unit) {
+            onDispose {
+                Log.d(TAG, "Dispose user: ===> $userId")
+            }
+        }
+
         return produceState<Result<User>>(
             initialValue = Result.Loading,
             userId,
-            jsonPlaceholderApi
+            Unit
         ) {
             val user = jsonPlaceholderApi.getUser(userId)
+
+            Log.d(TAG, "Inside produceState user: ===> id : ${userId} name : ${user?.name}")
 
             value = if (user == null) Result.Error("no fetch")
             else Result.Success(user)
